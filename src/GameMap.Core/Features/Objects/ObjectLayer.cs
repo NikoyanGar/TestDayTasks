@@ -1,8 +1,9 @@
 ﻿using GameMap.Core.Converters;
+using GameMap.Core.Features.Surface;
 using GameMap.Core.Models;
 using GameMap.Core.Storage;
 
-namespace GameMap.Core.Layers;
+namespace GameMap.Core.Features.Objects;
 
 /// <summary>
 /// Provides operations for storing, retrieving, and querying map objects, using a GEO-capable storage for spatial searches.
@@ -10,7 +11,7 @@ namespace GameMap.Core.Layers;
 public class ObjectLayer : IObjectLayer
 {
     private readonly IGeoDb _db;
-    private readonly SurfaceLayer _surface;
+    private readonly ISurfaceLayer _surface;
     private readonly ICoordinateConverter coordinateConverter;
 
     private const string GeoKey = "game:objects";
@@ -30,7 +31,7 @@ public class ObjectLayer : IObjectLayer
     /// <param name="db">GEO-capable storage instance.</param>
     /// <param name="surface">Surface layer for placement validation.</param>
     /// <param name="converter">Coordinate converter for GEO operations.</param>
-    public ObjectLayer(IGeoDb db, SurfaceLayer surface, ICoordinateConverter converter)
+    public ObjectLayer(IGeoDb db, ISurfaceLayer surface, ICoordinateConverter converter)
     {
         _db = db;
         _surface = surface;

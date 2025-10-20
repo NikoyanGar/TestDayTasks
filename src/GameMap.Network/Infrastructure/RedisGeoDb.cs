@@ -1,7 +1,8 @@
+using GameMap.Core.Storage;
 using StackExchange.Redis;
 using System.Collections.Generic;
 
-namespace GameMap.Core.Storage;
+namespace GameMap.Network.Infrastructure;
 
 /// <summary>
 /// IGeoDb implementation backed by StackExchange.Redis.

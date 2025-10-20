@@ -1,6 +1,6 @@
 ﻿using GameMap.Core.Models;
 
-namespace GameMap.Core.Layers;
+namespace GameMap.Core.Features.Objects;
 
 /// <summary>
 /// Defines operations for managing map objects and querying them spatially.

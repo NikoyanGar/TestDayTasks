@@ -1,12 +1,15 @@
 ﻿using GameMap.Core.Models;
 
-namespace GameMap.Core.Layers;
+namespace GameMap.Core.Features.Surface;
 
 /// <summary>
 /// Abstraction for a surface layer that stores tile types and supports fast queries/updates.
 /// </summary>
 public interface ISurfaceLayer
 {
+    int Width { get; }
+    int Height { get; }
+
     /// <summary>
     /// Creates a new layer from a flat array of tile types sized width*height.
     /// </summary>

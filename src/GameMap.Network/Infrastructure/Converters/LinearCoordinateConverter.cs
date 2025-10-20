@@ -1,4 +1,6 @@
-namespace GameMap.Core.Converters;
+using GameMap.Core.Converters;
+
+namespace GameMap.Network.Infrastructure.Converters;
 /// <summary>
 /// Simple linear converter: one tile equals one kilometer; origin maps to (0,0) degrees.
 /// Longitude increases with X, latitude increases with Y.

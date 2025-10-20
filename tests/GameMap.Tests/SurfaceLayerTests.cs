@@ -1,4 +1,4 @@
-﻿using GameMap.Core.Layers;
+﻿using GameMap.Core.Features.Surface;
 using GameMap.Core.Models;
 using Xunit;
 

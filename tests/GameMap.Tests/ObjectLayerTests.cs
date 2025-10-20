@@ -1,7 +1,8 @@
-using GameMap.Core.Converters;
-using GameMap.Core.Layers;
+using GameMap.Core.Features.Objects;
+using GameMap.Core.Features.Surface;
 using GameMap.Core.Models;
 using GameMap.Core.Storage;
+using GameMap.Network.Infrastructure.Converters;
 using Moq;
 using Xunit;
 

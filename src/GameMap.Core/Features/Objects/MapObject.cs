@@ -1,4 +1,4 @@
-namespace GameMap.Core.Models;
+namespace GameMap.Core.Features.Objects;
 
 /// <summary>
 /// Represents a rectangular object placed on the tile map.
