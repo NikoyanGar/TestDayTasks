@@ -8,7 +8,7 @@ using GameMap.UdpClient.Models;
 
 namespace GameMap.UdpClient;
 
-internal sealed class UdpClientManager
+public sealed class UdpClientManager
 {
     private readonly IOptionsMonitor<UdpClientOptions> _options;
     private readonly EventBasedNetListener _listener;
@@ -17,6 +17,11 @@ internal sealed class UdpClientManager
     private NetPeer? _peer;
     private TaskCompletionSource<NetPeer>? _connectedTcs;
     private TaskCompletionSource<PongPacket>? _pongTcs;
+
+    // One in-flight request per response type (no correlation id in protocol)
+    private TaskCompletionSource<GetObjectsInAreaResponse>? _objectsTcs;
+    private TaskCompletionSource<GetRegionsInAreaResponse>? _regionsTcs;
+
     private readonly Stopwatch _sw = new();
 
     private long _lastConnectAttemptTicks;
@@ -62,6 +67,14 @@ internal sealed class UdpClientManager
                         _sw.Stop();
                         Console.WriteLine($"[UDP] Pong received. ServerTicksUtcMs={pong.ServerTicksUtcMs}. RTT≈{_sw.ElapsedMilliseconds}ms");
                         _pongTcs?.TrySetResult(pong);
+                        break;
+
+                    case PacketType.GetObjectsInAreaResponse when message is GetObjectsInAreaResponse objResp:
+                        _objectsTcs?.TrySetResult(objResp);
+                        break;
+
+                    case PacketType.GetRegionsInAreaResponse when message is GetRegionsInAreaResponse regResp:
+                        _regionsTcs?.TrySetResult(regResp);
                         break;
                 }
             }
@@ -160,6 +173,86 @@ internal sealed class UdpClientManager
         finally
         {
             _pongTcs = null;
+        }
+    }
+
+    public async Task<(bool Success, GetObjectsInAreaResponse? Response, string? Error)> RequestObjectsInAreaAsync(
+        int x1, int y1, int x2, int y2, TimeSpan timeout, CancellationToken ct)
+    {
+        try
+        {
+            var peer = await EnsureConnectedAsync(timeout, ct);
+            if (peer == null)
+                return (false, null, "Not connected");
+
+            var req = new GetObjectsInAreaRequest { X1 = x1, Y1 = y1, X2 = x2, Y2 = y2 };
+            var bytes = PacketSerializer.Serialize(PacketType.GetObjectsInAreaRequest, req);
+
+            var tcs = new TaskCompletionSource<GetObjectsInAreaResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _objectsTcs = tcs;
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(timeout);
+
+            peer.Send(bytes, DeliveryMethod.ReliableOrdered);
+
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(Timeout.Infinite, cts.Token));
+            if (completed != tcs.Task)
+                return (false, null, "Timeout waiting for GetObjectsInAreaResponse");
+
+            return (true, await tcs.Task, null);
+        }
+        catch (OperationCanceledException)
+        {
+            return (false, null, "Canceled");
+        }
+        catch (Exception ex)
+        {
+            return (false, null, ex.Message);
+        }
+        finally
+        {
+            _objectsTcs = null;
+        }
+    }
+
+    public async Task<(bool Success, GetRegionsInAreaResponse? Response, string? Error)> RequestRegionsInAreaAsync(
+        int x1, int y1, int x2, int y2, TimeSpan timeout, CancellationToken ct)
+    {
+        try
+        {
+            var peer = await EnsureConnectedAsync(timeout, ct);
+            if (peer == null)
+                return (false, null, "Not connected");
+
+            var req = new GetRegionsInAreaRequest { X1 = x1, Y1 = y1, X2 = x2, Y2 = y2 };
+            var bytes = PacketSerializer.Serialize(PacketType.GetRegionsInAreaRequest, req);
+
+            var tcs = new TaskCompletionSource<GetRegionsInAreaResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _regionsTcs = tcs;
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(timeout);
+
+            peer.Send(bytes, DeliveryMethod.ReliableOrdered);
+
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(Timeout.Infinite, cts.Token));
+            if (completed != tcs.Task)
+                return (false, null, "Timeout waiting for GetRegionsInAreaResponse");
+
+            return (true, await tcs.Task, null);
+        }
+        catch (OperationCanceledException)
+        {
+            return (false, null, "Canceled");
+        }
+        catch (Exception ex)
+        {
+            return (false, null, ex.Message);
+        }
+        finally
+        {
+            _regionsTcs = null;
         }
     }
 

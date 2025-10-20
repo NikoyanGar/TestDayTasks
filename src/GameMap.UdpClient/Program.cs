@@ -1,5 +1,4 @@
-﻿using GameMap.UdpClient.Models;
-using GameMap.UdpClient.Options;
+﻿using GameMap.UdpClient.Options;
 using Microsoft.Extensions.Options;
 
 namespace GameMap.UdpClient;
@@ -19,6 +18,7 @@ internal class Program
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
+        builder.Services.AddControllers();
 
         builder.Services.AddSingleton<UdpClientManager>();
         builder.Services.AddHostedService<UdpClientBackgroundService>();
@@ -28,36 +28,10 @@ internal class Program
         app.UseSwagger();
         app.UseSwaggerUI();
 
-        var api = app.MapGroup("/api").WithTags("UDP Client");
-
-        api.MapGet("/status", (UdpClientManager mgr) =>
-        {
-            var status = mgr.GetStatus();
-            return Results.Ok(status);
-        })
-        .WithName("GetStatus")
-        .WithSummary("Get UDP client connection status");
-
-        api.MapPost("/connect", (UdpClientManager mgr, ConnectRequest req) =>
-        {
-            mgr.Reconfigure(req.Host, req.Port, req.Key);
-            return Results.Accepted();
-        })
-        .WithName("ConfigureAndReconnect")
-        .WithSummary("Set host/port/key and reconnect to the UDP server");
-
-        api.MapPost("/messages/ping", async (UdpClientManager mgr, CancellationToken ct) =>
-        {
-            var result = await mgr.SendPingAsync(TimeSpan.FromSeconds(5), ct);
-            return result.Success
-                ? Results.Ok(new PingResponseDto(result.ServerTicksUtcMs, result.RttMs))
-                : Results.Problem(result.Error ?? "Ping failed", statusCode: 504);
-        })
-        .WithName("SendPing")
-        .WithSummary("Send a Ping to the UDP server and get RTT");
+        app.MapControllers();
 
         var opt = app.Services.GetRequiredService<IOptionsMonitor<UdpClientOptions>>().CurrentValue;
-        Console.WriteLine($"Starting Web API + UDP client. UDP target={opt.Host}:{opt.Port}, key={(string.IsNullOrEmpty(opt.ConnectionKey) ? "<null>" : "***")}");
+        Console.WriteLine($"Starting Web API + UDP client. UDP target={opt.Host}:{opt.Port}, key={opt.ConnectionKey}");
         await app.RunAsync();
     }
 }

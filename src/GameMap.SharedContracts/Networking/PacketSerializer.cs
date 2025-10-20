@@ -30,6 +30,28 @@ public static class PacketSerializer
 
         switch (type)
         {
+            case PacketType.GetObjectsInAreaRequest:
+                message = MemoryPackSerializer.Deserialize<GetObjectsInAreaRequest>(payload);
+                return true;
+
+            case PacketType.GetObjectsInAreaResponse:
+                message = MemoryPackSerializer.Deserialize<GetObjectsInAreaResponse>(payload);
+                return true;
+
+            case PacketType.GetRegionsInAreaRequest:
+                message = MemoryPackSerializer.Deserialize<GetRegionsInAreaRequest>(payload);
+                return true;
+
+            case PacketType.GetRegionsInAreaResponse:
+                message = MemoryPackSerializer.Deserialize<GetRegionsInAreaResponse>(payload);
+                return true;
+
+            case PacketType.ObjectAdded:
+            case PacketType.ObjectUpdated:
+            case PacketType.ObjectDeleted:
+                message = MemoryPackSerializer.Deserialize<ObjectEventMessage>(payload);
+                return true;
+
             case PacketType.Ping:
                 message = MemoryPackSerializer.Deserialize<PingPacket>(payload);
                 return true;

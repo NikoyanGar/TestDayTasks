@@ -1,6 +1,8 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using GameMap.Core;
 using GameMap.Server.Options;
 using GameMap.SharedContracts.Networking;
 using GameMap.SharedContracts.Networking.Packets;
@@ -16,14 +18,19 @@ public sealed class UdpServerHostedService : IHostedService, INetEventListener
 {
     private readonly ILogger<UdpServerHostedService> _logger;
     private readonly NetworkOptions _options;
+    private readonly IMapManager _map;
     private NetManager? _server;
     private CancellationTokenSource? _cts;
     private Task? _pollTask;
 
-    public UdpServerHostedService(ILogger<UdpServerHostedService> logger, IOptions<NetworkOptions> options)
+    public UdpServerHostedService(
+        ILogger<UdpServerHostedService> logger,
+        IOptions<NetworkOptions> options,
+        IMapManager map)
     {
         _logger = logger;
         _options = options.Value;
+        _map = map;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -136,6 +143,52 @@ public sealed class UdpServerHostedService : IHostedService, INetEventListener
                     peer.Send(bytes, DeliveryMethod.Unreliable);
                     break;
                 }
+
+                case PacketType.GetObjectsInAreaRequest when message is GetObjectsInAreaRequest reqObj:
+                {
+                    var objects = _map.GetObjectsInArea(reqObj.X1, reqObj.Y1, reqObj.X2, reqObj.Y2);
+                    var dto = new GetObjectsInAreaResponse
+                    {
+                        Objects = objects.Select(o => new GameObjectDto
+                        {
+                            Id = o.Id,
+                            X = o.X,
+                            Y = o.Y,
+                            Width = o.Width,
+                            Height = o.Height
+                        }).ToList()
+                    };
+
+                    var bytes = PacketSerializer.Serialize(PacketType.GetObjectsInAreaResponse, dto);
+                    peer.Send(bytes, DeliveryMethod.ReliableOrdered);
+                    break;
+                }
+
+                case PacketType.GetRegionsInAreaRequest when message is GetRegionsInAreaRequest reqReg:
+                {
+                    // Translate (x1,y1,x2,y2) to (x,y,width,height)
+                    var x = Math.Min(reqReg.X1, reqReg.X2);
+                    var y = Math.Min(reqReg.Y1, reqReg.Y2);
+                    var width = Math.Abs(reqReg.X2 - reqReg.X1);
+                    var height = Math.Abs(reqReg.Y2 - reqReg.Y1);
+                    if (width == 0) width = 1;
+                    if (height == 0) height = 1;
+
+                    var regions = _map.GetRegionsInArea(x, y, width, height);
+                    var dto = new GetRegionsInAreaResponse
+                    {
+                        Regions = regions.Select(r => new RegionDto
+                        {
+                            Id = r.Id,
+                            Name = r.Name
+                        }).ToList()
+                    };
+
+                    var bytes = PacketSerializer.Serialize(PacketType.GetRegionsInAreaResponse, dto);
+                    peer.Send(bytes, DeliveryMethod.ReliableOrdered);
+                    break;
+                }
+
                 default:
                     break;
             }
