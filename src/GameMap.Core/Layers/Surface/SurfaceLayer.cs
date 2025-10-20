@@ -48,6 +48,8 @@ public sealed class SurfaceLayer : ISurfaceLayer
         }
     }
 
+    public SurfaceLayer(): this(50, 50) { }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int Index(int x, int y)
     {
@@ -80,18 +82,18 @@ public sealed class SurfaceLayer : ISurfaceLayer
     /// </summary>
     public void SetTile(int x, int y, TileType type) => tiles[Index(x, y)] = (byte)type;
 
-    /// <summary>
-    /// Creates a new layer with the specified tiles copied from a flat array of length width*height.
-    /// </summary>
-    public static SurfaceLayer FromArray(int width, int height, TileType[] source)
-    {
-        if (source == null) throw new ArgumentNullException(nameof(source));
-        if (source.Length != width * height) throw new ArgumentException("Source array length does not match map size");
+    ///// <summary>
+    ///// Creates a new layer with the specified tiles copied from a flat array of length width*height.
+    ///// </summary>
+    //public static SurfaceLayer FromArray(int width, int height, TileType[] source)
+    //{
+    //    if (source == null) throw new ArgumentNullException(nameof(source));
+    //    if (source.Length != width * height) throw new ArgumentException("Source array length does not match map size");
 
-        var layer = new SurfaceLayer(width, height);
-        Buffer.BlockCopy(source, 0, layer.tiles, 0, source.Length);
-        return layer;
-    }
+    //    var layer = new SurfaceLayer(width, height);
+    //    Buffer.BlockCopy(source, 0, layer.tiles, 0, source.Length);
+    //    return layer;
+    //}
 
     /// <summary>
     /// Fills an inclusive rectangle with the given tile type. Coordinates are clamped to the map bounds; non-intersecting rectangles are ignored.

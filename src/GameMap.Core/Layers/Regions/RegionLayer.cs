@@ -30,7 +30,6 @@ public sealed class RegionLayer : IRegionLayer
 
     private void GenerateRegions(int regionCount)
     {
-        // равномерное деление карты на регионы (грид)
         int regionsPerRow = (int)Math.Sqrt(regionCount);
         int regionsPerCol = regionCount / regionsPerRow;
 
@@ -46,7 +45,6 @@ public sealed class RegionLayer : IRegionLayer
                 var region = new Region(id, $"Region_{id}");
                 regions[id] = region;
 
-                // заполнение тайлов региона
                 for (int y = 0; y < regionHeight; y++)
                 {
                     for (int x = 0; x < regionWidth; x++)

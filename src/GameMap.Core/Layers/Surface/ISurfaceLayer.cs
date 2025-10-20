@@ -10,13 +10,13 @@ public interface ISurfaceLayer
     int Width { get; }
     int Height { get; }
 
-    /// <summary>
-    /// Creates a new layer from a flat array of tile types sized width*height.
-    /// </summary>
-    /// <param name="width">Map width in tiles.</param>
-    /// <param name="height">Map height in tiles.</param>
-    /// <param name="source">Flat array of tile types length equals width*height.</param>
-    static abstract SurfaceLayer FromArray(int width, int height, TileType[] source);
+    ///// <summary>
+    ///// Creates a new layer from a flat array of tile types sized width*height.
+    ///// </summary>
+    ///// <param name="width">Map width in tiles.</param>
+    ///// <param name="height">Map height in tiles.</param>
+    ///// <param name="source">Flat array of tile types length equals width*height.</param>
+    //static abstract SurfaceLayer FromArray(int width, int height, TileType[] source);
 
     /// <summary>
     /// Checks if all tiles in the specified inclusive rectangle allow placing objects.
