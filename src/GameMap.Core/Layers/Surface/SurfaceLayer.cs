@@ -50,6 +50,24 @@ public sealed class SurfaceLayer : ISurfaceLayer
 
     public SurfaceLayer(): this(50, 50) { }
 
+    /// <summary>
+    /// Creates a new layer from a flat array of tile types sized width*height.
+    /// </summary>
+    public static SurfaceLayer FromArray(int width, int height, TileType[] source)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (width <= 0 || height <= 0) throw new ArgumentOutOfRangeException("Width/Height must be > 0.");
+        if (source.Length != checked(width * height))
+            throw new ArgumentException("Source array length must equal width*height.", nameof(source));
+
+        var layer = new SurfaceLayer(width, height);
+        var dst = layer.tiles;
+        for (int i = 0; i < source.Length; i++)
+            dst[i] = (byte)source[i];
+
+        return layer;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int Index(int x, int y)
     {
@@ -81,19 +99,6 @@ public sealed class SurfaceLayer : ISurfaceLayer
     /// Sets the tile type at coordinates. Throws if out of bounds.
     /// </summary>
     public void SetTile(int x, int y, TileType type) => tiles[Index(x, y)] = (byte)type;
-
-    ///// <summary>
-    ///// Creates a new layer with the specified tiles copied from a flat array of length width*height.
-    ///// </summary>
-    //public static SurfaceLayer FromArray(int width, int height, TileType[] source)
-    //{
-    //    if (source == null) throw new ArgumentNullException(nameof(source));
-    //    if (source.Length != width * height) throw new ArgumentException("Source array length does not match map size");
-
-    //    var layer = new SurfaceLayer(width, height);
-    //    Buffer.BlockCopy(source, 0, layer.tiles, 0, source.Length);
-    //    return layer;
-    //}
 
     /// <summary>
     /// Fills an inclusive rectangle with the given tile type. Coordinates are clamped to the map bounds; non-intersecting rectangles are ignored.

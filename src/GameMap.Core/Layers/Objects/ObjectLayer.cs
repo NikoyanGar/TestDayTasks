@@ -53,9 +53,9 @@ public class ObjectLayer : IObjectLayer
         if (!CanPlaceObject(obj))
             throw new InvalidOperationException("Cannot place object on this terrain.");
 
-        (double lon, double lat) = coordinateConverter.ToRedisCoordinates(obj.X, obj.Y);
+        (double longitude, double latatitude) = coordinateConverter.ToRedisCoordinates(obj.X, obj.Y);
 
-        _db.GeoAdd(GeoKey, lon, lat, obj.Id);
+        _db.GeoAdd(GeoKey, longitude, latatitude, obj.Id);
         _db.StringSet($"game:object:{obj.Id}", System.Text.Json.JsonSerializer.Serialize(obj));
 
         ObjectCreated?.Invoke(obj);
@@ -64,8 +64,8 @@ public class ObjectLayer : IObjectLayer
     /// <inheritdoc />
     public void UpdateObject(MapObject obj)
     {
-        (double lon, double lat) = coordinateConverter.ToRedisCoordinates(obj.X, obj.Y);
-        _db.GeoAdd(GeoKey, lon, lat, obj.Id);
+        (double longitude, double latatitude) = coordinateConverter.ToRedisCoordinates(obj.X, obj.Y);
+        _db.GeoAdd(GeoKey, longitude, latatitude, obj.Id);
         _db.StringSet($"game:object:{obj.Id}", System.Text.Json.JsonSerializer.Serialize(obj));
         ObjectUpdated?.Invoke(obj);
     }
@@ -96,8 +96,8 @@ public class ObjectLayer : IObjectLayer
     /// <inheritdoc />
     public MapObject? GetObjectAt(int x, int y)
     {
-        (double lon, double lat) = coordinateConverter.ToRedisCoordinates(x, y);
-        var candidates = _db.GeoRadius(GeoKey, lon, lat, 1);
+        (double longitude, double latatitude) = coordinateConverter.ToRedisCoordinates(x, y);
+        var candidates = _db.GeoRadius(GeoKey, longitude, latatitude, 1);
         foreach (var member in candidates)
         {
             var obj = GetObject(member);
@@ -114,11 +114,11 @@ public class ObjectLayer : IObjectLayer
 
         int centerX = (x1 + x2) / 2;
         int centerY = (y1 + y2) / 2;
-        (double lon, double lat) = coordinateConverter.ToRedisCoordinates(centerX, centerY);
+        (double longitude, double latatitude) = coordinateConverter.ToRedisCoordinates(centerX, centerY);
 
         int radiusKm = Math.Max(Math.Abs(x2 - x1), Math.Abs(y2 - y1)) / 2 + 1;
 
-        var nearby = _db.GeoRadius(GeoKey, lon, lat, radiusKm);
+        var nearby = _db.GeoRadius(GeoKey, longitude, latatitude, radiusKm);
 
         foreach (var member in nearby)
         {

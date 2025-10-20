@@ -3,38 +3,38 @@ using GameMap.Core.Features.Objects;
 using GameMap.Core.Features.Regions;
 using GameMap.Core.Features.Surface;
 using GameMap.Core.Models;
-using GameMap.Core.Storage;
 
 namespace GameMap.Core;
 
-public class MapManager : IMapManager
+public sealed class MapManager : IMapManager
 {
-    private ISurfaceLayer _surfaceLayer { get; set; }
-
-    private IObjectLayer _objectsLayer { get; }
-
-    private IRegionLayer _regionLayer { get; set; }
+    private readonly ISurfaceLayer _surfaceLayer;
+    private readonly IObjectLayer _objectsLayer;
+    private readonly IRegionLayer _regionLayer;
 
     public MapManager(ISurfaceLayer surface, IObjectLayer objectLayer, IRegionLayer regionLayer)
     {
-        _surfaceLayer = surface;
-        _objectsLayer = objectLayer;
-        _regionLayer = regionLayer;
+        _surfaceLayer = surface ?? throw new ArgumentNullException(nameof(surface));
+        _objectsLayer = objectLayer ?? throw new ArgumentNullException(nameof(objectLayer));
+        _regionLayer = regionLayer ?? throw new ArgumentNullException(nameof(regionLayer));
     }
-
 
     public bool TryPlaceObject(MapObject obj, TileType? occupyTile = null)
     {
-        if (!_surfaceLayer.CanPlaceObjectsInArea(obj.X, obj.Y, obj.X + obj.Width - 1, obj.Y + obj.Height - 1))
+        if (obj is null) throw new ArgumentNullException(nameof(obj));
+
+        var (x2, y2) = (obj.X + obj.Width - 1, obj.Y + obj.Height - 1);
+
+        if (!_surfaceLayer.CanPlaceObjectsInArea(obj.X, obj.Y, x2, y2))
             return false;
 
-        var overlappingObjects = _objectsLayer.GetObjectsInArea(obj.X, obj.Y, obj.X + obj.Width - 1, obj.Y + obj.Height - 1);
-        if (overlappingObjects.Count > 0) return false;
+        var overlapping = _objectsLayer.GetObjectsInArea(obj.X, obj.Y, x2, y2);
+        if (overlapping.Count > 0) return false;
 
         _objectsLayer.AddObject(obj);
 
         if (occupyTile.HasValue)
-            _surfaceLayer.FillArea(obj.X, obj.Y, obj.X + obj.Width - 1, obj.Y + obj.Height - 1, occupyTile.Value);
+            _surfaceLayer.FillArea(obj.X, obj.Y, x2, y2, occupyTile.Value);
 
         return true;
     }
@@ -51,29 +51,66 @@ public class MapManager : IMapManager
 
     public void PrintMapWithObjects()
     {
-        for (int y = 0; y < _surfaceLayer.Height; y++)
+        int width = _surfaceLayer.Width;
+        int height = _surfaceLayer.Height;
+
+        var originalColor = Console.ForegroundColor;
+        try
         {
-            for (int x = 0; x < _surfaceLayer.Width; x++)
+            for (int y = 0; y < height; y++)
             {
-                var objHere = _objectsLayer.GetObjectsInArea(x, y, x, y).FirstOrDefault();
-                if (objHere != null)
-                    Console.Write('O'); // object symbol
-                else
-                    Console.Write(_surfaceLayer.GetTile(x, y) switch
+                for (int x = 0; x < width; x++)
+                {
+                    char ch;
+                    var objHere = _objectsLayer.GetObjectAt(x, y);
+                    if (objHere is not null)
                     {
-                        TileType.Plain => '.',
-                        TileType.Mountain => '^',
-                        TileType.Water => '~',
-                        _ => '?'
-                    });
+                        ch = 'O'; // object symbol
+                    }
+                    else
+                    {
+                        ch = _surfaceLayer.GetTile(x, y) switch
+                        {
+                            TileType.Plain => '.',
+                            TileType.Mountain => '^',
+                            TileType.Water => '~',
+                            _ => '?'
+                        };
+                    }
+
+                    bool isRegionBorder = IsRegionBorderTile(x, y);
+
+                    if (isRegionBorder)
+                        Console.ForegroundColor = ConsoleColor.Red;
+
+                    Console.Write(ch);
+
+                    if (isRegionBorder)
+                        Console.ForegroundColor = originalColor;
+                }
+                Console.WriteLine();
             }
-            Console.WriteLine();
+        }
+        finally
+        {
+            Console.ForegroundColor = originalColor;
         }
     }
 
-    public List<Region> GetRegionsInArea(int x1, int y1, int v1, int v2)
+    private bool IsRegionBorderTile(int x, int y)
     {
-        return _regionLayer.GetRegionsInArea(x1, y1, v1, v2).ToList();
+        ushort id = _regionLayer.GetRegionId(x, y);
+
+        // Check any 4-neighborhood change in region id to mark this tile as on a border.
+        if (x > 0 && _regionLayer.GetRegionId(x - 1, y) != id) return true;                          // West
+        if (x < _regionLayer.Width - 1 && _regionLayer.GetRegionId(x + 1, y) != id) return true;     // East
+        if (y > 0 && _regionLayer.GetRegionId(x, y - 1) != id) return true;                          // North
+        if (y < _regionLayer.Height - 1 && _regionLayer.GetRegionId(x, y + 1) != id) return true;    // South
+
+        return false;
     }
+
+    public List<Region> GetRegionsInArea(int x, int y, int width, int height)
+        => _regionLayer.GetRegionsInArea(x, y, width, height).ToList();
 }
 

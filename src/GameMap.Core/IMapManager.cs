@@ -8,7 +8,7 @@ namespace GameMap.Core
     {
         bool CanPlaceObjectInArea(int x1, int y1, int x2, int y2);
         List<MapObject> GetObjectsInArea(int x1, int y1, int x2, int y2);
-        List<Region> GetRegionsInArea(int x1, int y1, int v1, int v2);
+        List<Region> GetRegionsInArea(int x, int y, int width, int height);
         void PrintMapWithObjects();
         bool TryPlaceObject(MapObject obj, TileType? occupyTile = null);
     }
