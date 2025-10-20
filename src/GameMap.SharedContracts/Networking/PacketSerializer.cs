@@ -46,6 +46,14 @@ public static class PacketSerializer
                 message = MemoryPackSerializer.Deserialize<GetRegionsInAreaResponse>(payload);
                 return true;
 
+            case PacketType.AddObjectRequest:
+                message = MemoryPackSerializer.Deserialize<AddObjectRequest>(payload);
+                return true;
+
+            case PacketType.AddObjectResponse:
+                message = MemoryPackSerializer.Deserialize<AddObjectResponse>(payload);
+                return true;
+
             case PacketType.ObjectAdded:
             case PacketType.ObjectUpdated:
             case PacketType.ObjectDeleted:

@@ -1,16 +1,18 @@
-using System;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
 using GameMap.Core;
+using GameMap.Core.Layers.Objects;
 using GameMap.Server.Options;
 using GameMap.SharedContracts.Networking;
 using GameMap.SharedContracts.Networking.Packets;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using MemoryPack;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 
 namespace GameMap.Server.Services;
 
@@ -22,6 +24,9 @@ public sealed class UdpServerHostedService : IHostedService, INetEventListener
     private NetManager? _server;
     private CancellationTokenSource? _cts;
     private Task? _pollTask;
+    private readonly object peersLock = new();
+    private readonly List<NetPeer> peers = new();
+
 
     public UdpServerHostedService(
         ILogger<UdpServerHostedService> logger,
@@ -90,11 +95,13 @@ public sealed class UdpServerHostedService : IHostedService, INetEventListener
 
     public void OnPeerConnected(NetPeer peer)
     {
+        lock (peersLock) { peers.Add(peer); }
         _logger.LogInformation("Peer connected: {EndPoint}", peer.Address);
     }
 
     public void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
     {
+        lock (peersLock) { peers.Remove(peer); }
         _logger.LogInformation("Peer disconnected: {EndPoint}. Reason={Reason}", peer.Address, disconnectInfo.Reason);
     }
 
@@ -189,6 +196,37 @@ public sealed class UdpServerHostedService : IHostedService, INetEventListener
                     break;
                 }
 
+                case PacketType.AddObjectRequest when message is AddObjectRequest addReq:
+                {
+                    var obj = new MapObject(addReq.Id, addReq.X, addReq.Y, addReq.Width, addReq.Height);
+                    var ok = _map.TryPlaceObject(obj, occupyTile: null);
+
+                    var resp = new AddObjectResponse
+                    {
+                        Success = ok,
+                        Error = ok ? null : "Could not place object in the requested area."
+                    };
+
+                    var bytes = PacketSerializer.Serialize(PacketType.AddObjectResponse, resp);
+                    peer.Send(bytes, DeliveryMethod.ReliableOrdered);
+
+                    if (ok && _server is not null)
+                    {
+                        var evt = new ObjectEventMessage
+                        {
+                            Id = obj.Id,
+                            X = obj.X,
+                            Y = obj.Y,
+                            Width = obj.Width,
+                            Height = obj.Height
+                        };
+                        var evtBytes = PacketSerializer.Serialize(PacketType.ObjectAdded, evt);
+                        foreach (var p in _server.ConnectedPeerList)
+                            p.Send(evtBytes, DeliveryMethod.ReliableOrdered);
+                    }
+                    break;
+                }
+
                 default:
                     break;
             }
@@ -202,5 +240,25 @@ public sealed class UdpServerHostedService : IHostedService, INetEventListener
     public void OnNetworkReceiveUnconnected(IPEndPoint remoteEndPoint, NetPacketReader reader, UnconnectedMessageType messageType)
     {
         reader.Recycle();
+    }
+
+    public void BroadcastObjectEvent(PacketType type, ObjectEventMessage ev)
+    {
+        if (type != PacketType.ObjectAdded && type != PacketType.ObjectUpdated && type != PacketType.ObjectDeleted)
+            throw new ArgumentException("Invalid event type");
+
+        var body = MemoryPackSerializer.Serialize(ev);
+        var toSend = new byte[1 + body.Length];
+        toSend[0] = (byte)type;
+        Array.Copy(body, 0, toSend, 1, body.Length);
+
+        lock (peersLock)
+        {
+            foreach (var p in peers.ToList())
+            {
+                if (p.ConnectionState == ConnectionState.Connected)
+                    p.Send(toSend, DeliveryMethod.ReliableOrdered);
+            }
+        }
     }
 }

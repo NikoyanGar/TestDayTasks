@@ -1,4 +1,5 @@
-﻿using GameMap.Core.Converters;
+﻿using System;
+using GameMap.Core.Converters;
 using GameMap.Core.Layers.Objects;
 using GameMap.Core.Layers.Regions;
 using GameMap.Core.Layers.Surface;
@@ -12,11 +13,21 @@ public sealed class MapManager : IMapManager
     private readonly IObjectLayer _objectsLayer;
     private readonly IRegionLayer _regionLayer;
 
+    // Exposed events (forwarded from _objectsLayer)
+    public event Action<MapObject>? ObjectCreated;
+    public event Action<string>? ObjectDeleted;
+    public event Action<MapObject>? ObjectUpdated;
+
     public MapManager(ISurfaceLayer surface, IObjectLayer objectLayer, IRegionLayer regionLayer)
     {
         _surfaceLayer = surface ?? throw new ArgumentNullException(nameof(surface));
         _objectsLayer = objectLayer ?? throw new ArgumentNullException(nameof(objectLayer));
         _regionLayer = regionLayer ?? throw new ArgumentNullException(nameof(regionLayer));
+
+        // Forward inner layer events
+        _objectsLayer.ObjectCreated += obj => ObjectCreated?.Invoke(obj);
+        _objectsLayer.ObjectDeleted += id => ObjectDeleted?.Invoke(id);
+        _objectsLayer.ObjectUpdated += obj => ObjectUpdated?.Invoke(obj);
     }
 
     public bool TryPlaceObject(MapObject obj, TileType? occupyTile = null)

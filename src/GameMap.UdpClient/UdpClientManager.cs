@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Threading;
 using GameMap.SharedContracts.Networking;
 using GameMap.SharedContracts.Networking.Packets;
 using LiteNetLib;
@@ -18,9 +19,9 @@ public sealed class UdpClientManager
     private TaskCompletionSource<NetPeer>? _connectedTcs;
     private TaskCompletionSource<PongPacket>? _pongTcs;
 
-    // One in-flight request per response type (no correlation id in protocol)
     private TaskCompletionSource<GetObjectsInAreaResponse>? _objectsTcs;
     private TaskCompletionSource<GetRegionsInAreaResponse>? _regionsTcs;
+    private TaskCompletionSource<AddObjectResponse>? _addObjectTcs;
 
     private readonly Stopwatch _sw = new();
 
@@ -48,9 +49,11 @@ public sealed class UdpClientManager
 
         _listener.PeerConnectedEvent += peer =>
         {
-            _peer = peer;
+            Volatile.Write(ref _peer, peer);
             Console.WriteLine($"[UDP] Connected to {peer.Address}");
-            _connectedTcs?.TrySetResult(peer);
+
+            var tcs = Volatile.Read(ref _connectedTcs);
+            tcs?.TrySetResult(peer);
         };
 
         _listener.NetworkReceiveEvent += (peer, reader, channel, method) =>
@@ -66,15 +69,31 @@ public sealed class UdpClientManager
                     case PacketType.Pong when message is PongPacket pong:
                         _sw.Stop();
                         Console.WriteLine($"[UDP] Pong received. ServerTicksUtcMs={pong.ServerTicksUtcMs}. RTT≈{_sw.ElapsedMilliseconds}ms");
-                        _pongTcs?.TrySetResult(pong);
+                        Volatile.Read(ref _pongTcs)?.TrySetResult(pong);
                         break;
 
                     case PacketType.GetObjectsInAreaResponse when message is GetObjectsInAreaResponse objResp:
-                        _objectsTcs?.TrySetResult(objResp);
+                        Volatile.Read(ref _objectsTcs)?.TrySetResult(objResp);
                         break;
 
                     case PacketType.GetRegionsInAreaResponse when message is GetRegionsInAreaResponse regResp:
-                        _regionsTcs?.TrySetResult(regResp);
+                        Volatile.Read(ref _regionsTcs)?.TrySetResult(regResp);
+                        break;
+
+                    case PacketType.AddObjectResponse when message is AddObjectResponse addResp:
+                        _addObjectTcs?.TrySetResult(addResp);
+                        break;
+
+                    case PacketType.ObjectAdded when message is ObjectEventMessage added:
+                        Console.WriteLine($"[UDP] ObjectAdded: {added.Id} at ({added.X},{added.Y}) {added.Width}x{added.Height}");
+                        break;
+
+                    case PacketType.ObjectUpdated when message is ObjectEventMessage updated:
+                        Console.WriteLine($"[UDP] ObjectUpdated: {updated.Id} at ({updated.X},{updated.Y}) {updated.Width}x{updated.Height}");
+                        break;
+
+                    case PacketType.ObjectDeleted when message is ObjectEventMessage deleted:
+                        Console.WriteLine($"[UDP] ObjectDeleted: {deleted.Id}");
                         break;
                 }
             }
@@ -253,6 +272,54 @@ public sealed class UdpClientManager
         finally
         {
             _regionsTcs = null;
+        }
+    }
+
+    public async Task<(bool Success, AddObjectResponse? Response, string? Error)> AddObjectAsync(
+        GameObjectDto obj, TimeSpan timeout, CancellationToken ct)
+    {
+        try
+        {
+            var peer = await EnsureConnectedAsync(timeout, ct);
+            if (peer == null)
+                return (false, null, "Not connected");
+
+            var req = new AddObjectRequest
+            {
+                Id = obj.Id,
+                X = obj.X,
+                Y = obj.Y,
+                Width = obj.Width,
+                Height = obj.Height
+            };
+
+            var bytes = PacketSerializer.Serialize(PacketType.AddObjectRequest, req);
+
+            var tcs = new TaskCompletionSource<AddObjectResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _addObjectTcs = tcs;
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(timeout);
+
+            peer.Send(bytes, DeliveryMethod.ReliableOrdered);
+
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(Timeout.Infinite, cts.Token));
+            if (completed != tcs.Task)
+                return (false, null, "Timeout waiting for AddObjectResponse");
+
+            return (true, await tcs.Task, null);
+        }
+        catch (OperationCanceledException)
+        {
+            return (false, null, "Canceled");
+        }
+        catch (Exception ex)
+        {
+            return (false, null, ex.Message);
+        }
+        finally
+        {
+            _addObjectTcs = null;
         }
     }
 

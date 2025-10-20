@@ -5,6 +5,7 @@ using GameMap.Core.Layers.Surface;
 using GameMap.Core.Storage;
 using GameMap.Server.Options;
 using GameMap.Server.Services;
+using GameMap.SharedContracts.Networking.Packets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -17,11 +18,11 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var cfg = sp.GetRequiredService<IConfiguration>();
-    var connStr = cfg.GetConnectionString("Redis")?? "localhost:6379";
+    var connStr = cfg.GetConnectionString("Redis") ?? "localhost:6379";
     return ConnectionMultiplexer.Connect(connStr);
 });
 builder.Services.AddSingleton<IDatabase>(sp =>
-    sp.GetRequiredService<IConnectionMultiplexer>().GetDatabase());//TODO: full options
+    sp.GetRequiredService<IConnectionMultiplexer>().GetDatabase()); //TODO: full options
 
 builder.Services.AddSingleton<IGeoDb>(sp =>
     new RedisGeoDb(sp.GetRequiredService<IDatabase>()));
@@ -72,8 +73,33 @@ builder.Services.AddSingleton<IMapManager>(sp =>
 
 // Hosted services
 builder.Services.AddHostedService<MapHostedService>();
-builder.Services.AddHostedService<UdpServerHostedService>();
+
+// Register UDP server both as a singleton service and as a hosted service so we can inject/resolve it
+builder.Services.AddSingleton<UdpServerHostedService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<UdpServerHostedService>());
 
 var host = builder.Build();
+
+// Subscribe to map object events and broadcast via UDP
+var mapManager = host.Services.GetRequiredService<IMapManager>();
+var udpServer = host.Services.GetRequiredService<UdpServerHostedService>();
+
+mapManager.ObjectCreated += obj =>
+{
+    var ev = new ObjectEventMessage { Id = obj.Id, X = obj.X, Y = obj.Y, Width = obj.Width, Height = obj.Height };
+    udpServer.BroadcastObjectEvent(PacketType.ObjectAdded, ev);
+};
+
+mapManager.ObjectUpdated += obj =>
+{
+    var ev = new ObjectEventMessage { Id = obj.Id, X = obj.X, Y = obj.Y, Width = obj.Width, Height = obj.Height };
+    udpServer.BroadcastObjectEvent(PacketType.ObjectUpdated, ev);
+};
+
+mapManager.ObjectDeleted += id =>
+{
+    var ev = new ObjectEventMessage { Id = id, X = 0, Y = 0, Width = 0, Height = 0 };
+    udpServer.BroadcastObjectEvent(PacketType.ObjectDeleted, ev);
+};
 
 await host.RunAsync();

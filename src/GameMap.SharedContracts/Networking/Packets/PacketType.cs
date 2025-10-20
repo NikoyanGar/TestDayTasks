@@ -9,6 +9,9 @@ public enum PacketType : byte
     GetRegionsInAreaRequest = 3,
     GetRegionsInAreaResponse = 4,
 
+    AddObjectRequest = 5,
+    AddObjectResponse = 6,
+
     ObjectAdded = 10,
     ObjectUpdated = 11,
     ObjectDeleted = 12,
