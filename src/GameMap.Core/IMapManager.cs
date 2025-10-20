@@ -1,5 +1,5 @@
-﻿using GameMap.Core.Features.Objects;
-using GameMap.Core.Features.Regions;
+﻿using GameMap.Core.Layers.Objects;
+using GameMap.Core.Layers.Regions;
 using GameMap.Core.Models;
 
 namespace GameMap.Core

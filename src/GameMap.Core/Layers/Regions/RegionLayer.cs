@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
-namespace GameMap.Core.Features.Regions;
+namespace GameMap.Core.Layers.Regions;
 
 /// <summary>
 /// Equal-area rectangular tiling region layer.
@@ -143,7 +143,7 @@ public sealed class RegionLayer : IRegionLayer
             {
                 int xBase = rx * regionWidth;
                 // pick any tile from the region rectangle (top-left)
-                ushort id = tiles[(yBase * Width) + xBase];
+                ushort id = tiles[yBase * Width + xBase];
                 set.Add(id);
             }
         }

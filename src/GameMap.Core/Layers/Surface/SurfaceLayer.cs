@@ -1,7 +1,7 @@
 ﻿using GameMap.Core.Models;
 using System.Runtime.CompilerServices;
 
-namespace GameMap.Core.Features.Surface;
+namespace GameMap.Core.Layers.Surface;
 
 /// <summary>
 /// Dense and cache-friendly implementation of a surface layer that stores tile types as bytes.

@@ -1,4 +1,4 @@
-using GameMap.Core.Features.Regions;
+using GameMap.Core.Layers.Regions;
 
 namespace GameMap.Core.Tests;
 

@@ -1,7 +1,7 @@
 ﻿using GameMap.Core;
-using GameMap.Core.Features.Objects;
-using GameMap.Core.Features.Regions;
-using GameMap.Core.Features.Surface;
+using GameMap.Core.Layers.Objects;
+using GameMap.Core.Layers.Regions;
+using GameMap.Core.Layers.Surface;
 using GameMap.Core.Models;
 
 namespace GameMap.Sandbox;

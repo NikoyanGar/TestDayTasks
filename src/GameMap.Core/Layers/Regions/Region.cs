@@ -1,4 +1,4 @@
-namespace GameMap.Core.Features.Regions;
+namespace GameMap.Core.Layers.Regions;
 
 public sealed class Region
 {

@@ -1,6 +1,6 @@
 ﻿using GameMap.Core.Models;
 
-namespace GameMap.Core.Features.Surface;
+namespace GameMap.Core.Layers.Surface;
 
 /// <summary>
 /// Abstraction for a surface layer that stores tile types and supports fast queries/updates.

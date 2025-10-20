@@ -1,9 +1,9 @@
 ﻿using GameMap.Core.Converters;
-using GameMap.Core.Features.Surface;
+using GameMap.Core.Layers.Surface;
 using GameMap.Core.Models;
 using GameMap.Core.Storage;
 
-namespace GameMap.Core.Features.Objects;
+namespace GameMap.Core.Layers.Objects;
 
 /// <summary>
 /// Provides operations for storing, retrieving, and querying map objects, using a GEO-capable storage for spatial searches.

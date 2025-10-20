@@ -1,5 +1,4 @@
-﻿
-namespace GameMap.Core.Features.Regions
+﻿namespace GameMap.Core.Layers.Regions
 {
     public interface IRegionLayer
     {

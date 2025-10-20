@@ -1,6 +1,6 @@
 using GameMap.Core;
-using GameMap.Core.Features.Objects;
-using GameMap.Core.Features.Surface;
+using GameMap.Core.Layers.Objects;
+using GameMap.Core.Layers.Surface;
 using GameMap.Core.Models;
 using GameMap.Server.Options;
 using Microsoft.Extensions.Hosting;

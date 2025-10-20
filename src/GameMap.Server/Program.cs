@@ -1,9 +1,7 @@
 ﻿using GameMap.Core;
-using GameMap.Core.Converters;
-using GameMap.Core.Features.Objects;
-using GameMap.Core.Features.Regions;
-using GameMap.Core.Features.Surface;
-using GameMap.Core.Models;
+using GameMap.Core.Layers.Objects;
+using GameMap.Core.Layers.Regions;
+using GameMap.Core.Layers.Surface;
 using GameMap.Core.Storage;
 using GameMap.Server.Options;
 using GameMap.Server.Services;
@@ -13,8 +11,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
-
-
 var builder = Host.CreateApplicationBuilder(args);
 
 // Redis (StackExchange.Redis)
@@ -22,7 +18,6 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var cfg = sp.GetRequiredService<IConfiguration>();
     var connStr = cfg.GetConnectionString("Redis")?? "localhost:6379";
-
     return ConnectionMultiplexer.Connect(connStr);
 });
 builder.Services.AddSingleton<IDatabase>(sp =>
@@ -41,6 +36,9 @@ builder.Configuration
 builder.Services
     .AddOptions<MapOptions>()
     .Bind(builder.Configuration.GetSection("Map"));
+builder.Services
+    .AddOptions<NetworkOptions>()
+    .Bind(builder.Configuration.GetSection("Network"));
 
 // Core dependencies
 builder.Services.AddSingleton<ISurfaceLayer>(sp =>
@@ -72,8 +70,9 @@ builder.Services.AddSingleton<IMapManager>(sp =>
     return new MapManager(surface, objects, regions);
 });
 
-// Hosted service (the game server loop)
+// Hosted services
 builder.Services.AddHostedService<MapHostedService>();
+builder.Services.AddHostedService<UdpServerHostedService>();
 
 var host = builder.Build();
 

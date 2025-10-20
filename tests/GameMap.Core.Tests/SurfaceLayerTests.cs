@@ -1,4 +1,4 @@
-using GameMap.Core.Features.Surface;
+using GameMap.Core.Layers.Surface;
 using GameMap.Core.Models;
 
 namespace GameMap.Core.Tests;
