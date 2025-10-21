@@ -1,9 +1,30 @@
+using System;
+using System.Linq;
+using Xunit;
 using GameMap.Core.Layers.Regions;
 
 namespace GameMap.Core.Tests;
 
 public class RegionLayerTests
 {
+    [Fact]
+    public void Constructor_Throws_WhenDimensionsNotDivisibleForEqualAreas()
+    {
+        // 10x10 map with 3 regions cannot be split into equal rectangles
+        Assert.Throws<ArgumentException>(() => new RegionLayer(10, 10, 3));
+    }
+
+    [Fact]
+    public void Constructor_Succeeds_ForBalancedGrid()
+    {
+        var layer = new RegionLayer(8, 6, 4); // 2x2 grid is expected
+        Assert.Equal(8, layer.Width);
+        Assert.Equal(6, layer.Height);
+        // Should not throw and create region ids in [1..4]
+        var ids = new ushort[] { layer.GetRegionId(0,0), layer.GetRegionId(7,5) };
+        Assert.All(ids, id => Assert.InRange(id, (ushort)1, (ushort)4));
+    }
+
     [Fact]
     public void Generate_EqualArea_10x10_On_1000x1000()
     {
@@ -54,5 +75,54 @@ public class RegionLayerTests
         Assert.Throws<ArgumentOutOfRangeException>(() => layer.GetRegionId(-1, 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => layer.GetRegionId(1000, 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => layer.GetRegionId(0, 1000));
+    }
+
+    [Fact]
+    public void GetRegionsInArea_EmptyForNonPositiveDims()
+    {
+        var layer = new RegionLayer(8, 6, 4);
+        Assert.Empty(layer.GetRegionsInArea(0, 0, 0, 1));
+        Assert.Empty(layer.GetRegionsInArea(0, 0, 1, 0));
+    }
+
+    [Fact]
+    public void GetRegionsInArea_ClampsAndReturnsUnique()
+    {
+        var layer = new RegionLayer(8, 6, 4); // 2x2
+        // Span across center to intersect all 4 regions
+        var regions = layer.GetRegionsInArea(2, 1, 6, 5).ToList();
+        Assert.Equal(4, regions.Count);
+        Assert.Equal(4, regions.Select(r => r.Id).Distinct().Count());
+    }
+
+    [Fact]
+    public void GetRegionById_ReturnsRegion()
+    {
+        var layer = new RegionLayer(8, 6, 4);
+        var id = layer.GetRegionId(0, 0);
+        var region = layer.GetRegionById(id);
+        Assert.Equal(id, region.Id);
+        Assert.StartsWith("Region_", region.Name);
+    }
+
+    [Fact]
+    public void IsTileInRegion_Works()
+    {
+        var layer = new RegionLayer(8, 6, 4);
+        var id = layer.GetRegionId(5, 4);
+        Assert.True(layer.IsTileInRegion(5, 4, id));
+        Assert.False(layer.IsTileInRegion(0, 0, id));
+    }
+
+    [Fact]
+    public void GetRegionId_IsConsistentWithinBlock()
+    {
+        var layer = new RegionLayer(8, 6, 4); // 2x2 -> region width 4, height 3
+        var id1 = layer.GetRegionId(0, 0);
+        var id2 = layer.GetRegionId(3, 2); // still top-left block
+        Assert.Equal(id1, id2);
+
+        var id3 = layer.GetRegionId(4, 0); // top-right block
+        Assert.NotEqual(id1, id3);
     }
 }

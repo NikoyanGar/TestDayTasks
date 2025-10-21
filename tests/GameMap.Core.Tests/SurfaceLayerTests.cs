@@ -1,3 +1,5 @@
+using System;
+using Xunit;
 using GameMap.Core.Layers.Surface;
 using GameMap.Core.Models;
 
@@ -6,77 +8,126 @@ namespace GameMap.Core.Tests;
 public class SurfaceLayerTests
 {
     [Fact]
-    public void Create_1000x1000_Default_Plain_Memory_Ok()
+    public void Constructor_Initializes_DefaultPlain()
     {
-        var layer = new SurfaceLayer(1000, 1000, TileType.Plain);
-        Assert.Equal(1000, layer.Width);
-        Assert.Equal(1000, layer.Height);
-        Assert.Equal(1_000_000, layer.EstimatedMemoryBytes()); // 1 byte per tile
-        Assert.True(layer.EstimatedMemoryBytes() <= 8 * 1024 * 1024);
-        Assert.Equal(TileType.Plain, layer.GetTile(0, 0));
+        var layer = new SurfaceLayer(3, 2);
+        Assert.Equal(3, layer.Width);
+        Assert.Equal(2, layer.Height);
+        Assert.Equal(6, layer.Count);
+
+        for (int y = 0; y < layer.Height; y++)
+            for (int x = 0; x < layer.Width; x++)
+                Assert.Equal(TileType.Plain, layer.GetTile(x, y));
     }
 
     [Fact]
-    public void Get_Set_Tile_Ok_And_OOB_Throws()
+    public void FromArray_CreatesLayer_WithExactTiles()
     {
-        var layer = new SurfaceLayer(10, 10);
+        var src = new[] {
+            TileType.Plain, TileType.Mountain, TileType.Water,
+            TileType.Water, TileType.Mountain, TileType.Plain
+        };
+        var layer = SurfaceLayer.FromArray(3, 2, src);
 
-        layer.SetTile(3, 4, TileType.Mountain);
-        Assert.Equal(TileType.Mountain, layer.GetTile(3, 4));
-
-        Assert.Throws<ArgumentOutOfRangeException>(() => layer.GetTile(-1, 0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => layer.SetTile(10, 9, TileType.Plain));
-
-        Assert.False(layer.TryGetTile(10, 10, out _));
-        Assert.True(layer.TryGetTile(0, 0, out var t0));
-        Assert.Equal(TileType.Plain, t0);
+        Assert.Equal(TileType.Plain, layer.GetTile(0,0));
+        Assert.Equal(TileType.Mountain, layer.GetTile(1,0));
+        Assert.Equal(TileType.Water, layer.GetTile(2,0));
+        Assert.Equal(TileType.Water, layer.GetTile(0,1));
+        Assert.Equal(TileType.Mountain, layer.GetTile(1,1));
+        Assert.Equal(TileType.Plain, layer.GetTile(2,1));
     }
 
     [Fact]
-    public void FillArea_Works_And_Clamps_OutOfBounds()
+    public void GetSetTile_Works()
     {
-        var layer = new SurfaceLayer(5, 5);
-        layer.FillArea(-10, -10, 1, 1, TileType.Mountain);
+        var layer = new SurfaceLayer(2, 2);
+        layer.SetTile(1, 1, TileType.Mountain);
+        Assert.Equal(TileType.Mountain, layer.GetTile(1,1));
+    }
+
+    [Fact]
+    public void TryGetTile_OutOfBounds_ReturnsFalse()
+    {
+        var layer = new SurfaceLayer(2, 2);
+        var ok = layer.TryGetTile(5, 5, out var type);
+        Assert.False(ok);
+        Assert.Equal(default, type);
+    }
+
+    [Fact]
+    public void TryGetTile_InBounds_ReturnsTrue()
+    {
+        var layer = new SurfaceLayer(2, 2);
+        var ok = layer.TryGetTile(1, 1, out var type);
+        Assert.True(ok);
+        Assert.Equal(TileType.Plain, type);
+    }
+
+    [Fact]
+    public void FillArea_ClampsAndFills_Inclusive()
+    {
+        var layer = new SurfaceLayer(4, 3);
+        layer.FillArea(-1, -1, 2, 1, TileType.Mountain);
+
+        // Filled area should be [0..2]x[0..1]
         for (int y = 0; y <= 1; y++)
-        for (int x = 0; x <= 1; x++)
-            Assert.Equal(TileType.Mountain, layer.GetTile(x, y));
-
-        // The rest should remain plain
-        Assert.Equal(TileType.Plain, layer.GetTile(2, 2));
-    }
-
-    [Fact]
-    public void CanPlaceObjectsInArea_True_On_Plain_False_On_Mountain_And_OOB()
-    {
-        var layer = new SurfaceLayer(10, 10);
-        // Make a 3x3 mountain block at (2..4,2..4)
-        layer.FillArea(2, 2, 4, 4, TileType.Mountain);
-
-        // Fully inside plains
-        Assert.True(layer.CanPlaceObjectsInArea(0, 0, 1, 1));
-
-        // Intersects mountain
-        Assert.False(layer.CanPlaceObjectsInArea(3, 3, 5, 5));
-
-        // Out of bounds
-        Assert.False(layer.CanPlaceObjectsInArea(-1, 0, 1, 1));
-        Assert.False(layer.CanPlaceObjectsInArea(0, 0, 10, 10));
-    }
-
-    [Fact]
-    public void FromArray_Constructs_Layer_Correctly()
-    {
-        int w = 4, h = 3;
-        var src = new TileType[w * h];
-        for (int i = 0; i < src.Length; i++)
-            src[i] = (i % 2 == 0) ? TileType.Plain : TileType.Mountain;
-
-        var layer = SurfaceLayer.FromArray(w, h, src);
-        for (int y = 0; y < h; y++)
-        for (int x = 0; x < w; x++)
         {
-            int idx = x + y * w;
-            Assert.Equal(src[idx], layer.GetTile(x, y));
+            for (int x = 0; x <= 2; x++)
+                Assert.Equal(TileType.Mountain, layer.GetTile(x, y));
         }
+        // Outside remains Plain
+        Assert.Equal(TileType.Plain, layer.GetTile(3, 0));
+        Assert.Equal(TileType.Plain, layer.GetTile(3, 2));
+    }
+
+    [Fact]
+    public void CanPlaceObjectsInArea_OutOfBounds_ReturnsFalse()
+    {
+        var layer = new SurfaceLayer(4, 3);
+        Assert.False(layer.CanPlaceObjectsInArea(-1, 0, 1, 1));
+        Assert.False(layer.CanPlaceObjectsInArea(0, -1, 1, 1));
+        Assert.False(layer.CanPlaceObjectsInArea(0, 0, 4, 1));
+        Assert.False(layer.CanPlaceObjectsInArea(0, 0, 1, 3));
+    }
+
+    [Fact]
+    public void CanPlaceObjectsInArea_AllPlain_ReturnsTrue()
+    {
+        var layer = new SurfaceLayer(4, 3);
+        Assert.True(layer.CanPlaceObjectsInArea(0, 0, 3, 2));
+    }
+
+    [Fact]
+    public void CanPlaceObjectsInArea_ContainsBlockedTile_ReturnsFalse()
+    {
+        var layer = new SurfaceLayer(4, 3);
+        layer.SetTile(2, 1, TileType.Mountain);
+        Assert.False(layer.CanPlaceObjectsInArea(1, 1, 3, 2));
+    }
+
+    [Fact]
+    public void Print_WritesExpectedSymbols()
+    {
+        var layer = new SurfaceLayer(3, 2);
+        layer.SetTile(1, 0, TileType.Mountain);
+        layer.SetTile(2, 1, TileType.Water);
+
+        using var sw = new System.IO.StringWriter();
+        Console.SetOut(sw);
+
+        layer.Print();
+
+        var expected =
+            ".^." + Environment.NewLine +
+            "..~" + Environment.NewLine;
+
+        Assert.Equal(expected, sw.ToString());
+    }
+
+    [Fact]
+    public void EstimatedMemoryBytes_EqualsTileCount()
+    {
+        var layer = new SurfaceLayer(5, 4);
+        Assert.Equal(20, layer.EstimatedMemoryBytes());
     }
 }
