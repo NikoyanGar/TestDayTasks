@@ -4,15 +4,12 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <UserSecretsId>feaa8666-0ec3-4d97-ad14-dfe51c98c530</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.3.1" />
-    <PackageReference Include="Aspire.Hosting.Redis" Version="9.5.1" />
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
   </ItemGroup>
 
   <ItemGroup>
